@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"runtime/debug"
 	"strings"
+
+	sliceutil "github.com/projectdiscovery/utils/slice"
 )
 
 // ShowStackTrace in Error Message
@@ -43,18 +45,22 @@ func (e *enrichedError) WithLevel(level ErrorLevel) Error {
 
 // returns formated *enrichedError string
 func (e *enrichedError) Error() string {
+	// dedupe tags
+	e.Tags = sliceutil.Dedupe(e.Tags)
 	defer func() {
 		if e.OnError != nil {
 			e.OnError(e.Level, e.errString, e.Tags...)
 		}
 	}()
 	var buff bytes.Buffer
-	label := fmt.Sprintf("[%v:%v]", strings.Join(e.Tags, ","), e.Level.String())
-	buff.WriteString(fmt.Sprintf("%v %v\n", label, e.errString))
+	buff.WriteString("[" + strings.Join(e.Tags, ",") + ":")
+	buff.WriteString(e.Level.String() + "]")
+	buff.WriteString(" " + e.errString)
 
 	if ShowStackTrace {
 		e.captureStack()
-		buff.WriteString(fmt.Sprintf("Stacktrace:\n%v\n", e.StackTrace))
+		buff.WriteString("Stacktrace:\n")
+		buff.WriteString(e.StackTrace)
 	}
 	return buff.String()
 }
